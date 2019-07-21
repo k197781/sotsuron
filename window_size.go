@@ -21,6 +21,8 @@ var (
 
 func main() {
 	windowScales := make(map[string][]byte)
+	connectionStartTimes := make(map[string]time.Time)
+
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +51,10 @@ func main() {
 		tcp, _ := tcpLayer.(*layers.TCP)
 		src := ip.SrcIP.String() +  tcp.SrcPort.String()
 		opts := tcp.Options
-		// SYNフラグが立っている時は，window scaleを変数windowScalesに格納
+
+		// SYNフラグが立っている時
+		// ・window scaleを変数windowScalesに格納
+		// ・コネクションの開始時間を格納
 		if tcp.SYN == true {
 			for _, opt := range opts {
 				if opt.OptionType.String() == "WindowScale" {
@@ -57,9 +62,15 @@ func main() {
 					fmt.Printf("window scale: %d\n", opt.OptionData)
 				}
 			}
+			connectionStartTimes[src] = time.Now()
+		// SYNフラグが立っていない時
+		// ・window sizeを計算
+		// ・接続時間を計算
 		} else {
 			CalculatedWindowSize := calculateWindowSize(tcp.Window, windowScales[src])
 			fmt.Printf("window size: %d calculated window size: %d\n", tcp.Window, CalculatedWindowSize)
+			connectionTime := time.Since(connectionStartTimes[src])
+			fmt.Printf("connection time: %f \n", connectionTime.Seconds())
 		}
 	}
 }
