@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"os/exec"
 	"encoding/binary"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -22,6 +23,8 @@ var (
 func main() {
 	windowScales := make(map[string][]byte)
 	connectionStartTimes := make(map[string]time.Time)
+	var minWindowSize int64 = 10000
+	var maxConnectiontime float64 = 5.0
 
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
 	if err != nil {
@@ -71,6 +74,12 @@ func main() {
 			fmt.Printf("window size: %d calculated window size: %d\n", tcp.Window, CalculatedWindowSize)
 			connectionTime := time.Since(connectionStartTimes[src])
 			fmt.Printf("connection time: %f \n", connectionTime.Seconds())
+			if CalculatedWindowSize < minWindowSize {
+				closeConnection(ip.SrcIP.String())
+			}
+			if connectionTime.Seconds() > maxConnectiontime {
+				closeConnection(ip.SrcIP.String())
+			}
 		}
 	}
 }
@@ -81,3 +90,11 @@ func calculateWindowSize(windowSize uint16, windowScale []byte) int64 {
 	return int64(windowSize) << windowScaleUnit64
 }
 
+func closeConnection(ip string) {
+	err := exec.Command("ufw", "insert", "1", "deny", "from", ip).Run()
+	if err != nil {
+
+		log.Printf("can not close connection from " + ip)
+	}
+	log.Printf("close connection from " + ip)
+}
