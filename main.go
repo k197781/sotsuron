@@ -3,17 +3,23 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 )
 
+var IsAttacked bool = false
+
 func main() {
 	maxConnection := 1000
+	go func() {
+		packetMonitoring()
+	}()
+
 	for {
-		out, err := exec.Command("sh", "-c", "netstat -tan | grep '3000' | wc -l").Output()
+
+		out, err := exec.Command("sh", "-c", "netstat -tan | grep ':80' | wc -l").Output()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -22,8 +28,7 @@ func main() {
 		connection, _ := strconv.Atoi(connectionStr)
 		fmt.Println(connection)
 		if connection > maxConnection {
-			os.Setenv("ISATTACKED", "false")
-			fmt.Println(os.Getenv("ISATTACKED"))
+			IsAttacked = true
 		}
 		time.Sleep(1 * time.Second)
 	}
