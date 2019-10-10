@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 	"os/exec"
@@ -20,11 +19,11 @@ var (
 	handle       *pcap.Handle
 )
 
-func main() {
+func packetMonitoring() {
 	windowScales := make(map[string][]byte)
 	connectionStartTimes := make(map[string]time.Time)
-	var minWindowSize int64 = 10000
-	var maxConnectiontime float64 = 5.0
+	var minWindowSize int64 = 200
+	var maxConnectiontime float64 = 10.0
 
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
 	if err != nil {
@@ -62,7 +61,6 @@ func main() {
 			for _, opt := range opts {
 				if opt.OptionType.String() == "WindowScale" {
 					windowScales[src] = opt.OptionData
-					fmt.Printf("window scale: %d\n", opt.OptionData)
 				}
 			}
 			connectionStartTimes[src] = time.Now()
@@ -71,14 +69,12 @@ func main() {
 		// ・接続時間を計算
 		} else {
 			CalculatedWindowSize := calculateWindowSize(tcp.Window, windowScales[src])
-			fmt.Printf("window size: %d calculated window size: %d\n", tcp.Window, CalculatedWindowSize)
 			connectionTime := time.Since(connectionStartTimes[src])
-			fmt.Printf("connection time: %f \n", connectionTime.Seconds())
-			if CalculatedWindowSize < minWindowSize {
-				closeConnection(ip.SrcIP.String())
+			if CalculatedWindowSize < minWindowSize && IsAttacked {
+				closeConnection(ip.SrcIP.String(), "window size")
 			}
-			if connectionTime.Seconds() > maxConnectiontime {
-				closeConnection(ip.SrcIP.String())
+			if connectionTime.Seconds() > maxConnectiontime && IsAttacked {
+				closeConnection(ip.SrcIP.String(), "connection time")
 			}
 		}
 	}
@@ -90,11 +86,12 @@ func calculateWindowSize(windowSize uint16, windowScale []byte) int64 {
 	return int64(windowSize) << windowScaleUnit64
 }
 
-func closeConnection(ip string) {
+func closeConnection(ip string, result string) {
 	err := exec.Command("ufw", "insert", "1", "deny", "from", ip).Run()
 	if err != nil {
 
-		log.Printf("can not close connection from " + ip)
+		log.Printf("can not close connection from " + ip + "because of" + result)
 	}
 	log.Printf("close connection from " + ip)
 }
+
