@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os/exec"
 	"strconv"
@@ -10,15 +9,16 @@ import (
 )
 
 var IsAttacked bool = false
+var timeDisconnectionRate time.Duration = 1
+var disconnectionCount int64 = 1
 
 func main() {
-	maxConnection := 1000
+	maxConnection := 800
 	go func() {
 		packetMonitoring()
 	}()
 
 	for {
-
 		out, err := exec.Command("sh", "-c", "netstat -tan | grep ':80' | wc -l").Output()
 		if err != nil {
 			log.Fatal(err)
@@ -26,10 +26,16 @@ func main() {
 		connectionStr := strings.Replace(string(out), " ", "", -1)
 		connectionStr = strings.Replace(connectionStr, "\n", "", -1)
 		connection, _ := strconv.Atoi(connectionStr)
-		fmt.Println(connection)
+		log.Println(connection)
 		if connection > maxConnection {
-			IsAttacked = true
+			if IsAttacked == false {
+				IsAttacked = true
+				log.Printf("this server is Attacked !!!")
+			}
+			disconnectionCount++
+		} else {
+			IsAttacked = false
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(timeDisconnectionRate * time.Second)
 	}
 }
