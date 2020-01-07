@@ -10,6 +10,7 @@ import (
 
 var IsAttacked bool = false
 var timeDisconnectionRate time.Duration = 1
+var attackedTime time.Duration = 1
 var disconnectionCount int64 = 1
 
 func main() {
@@ -32,7 +33,11 @@ func main() {
 				IsAttacked = true
 				log.Printf("this server is Attacked !!!")
 			}
-			disconnectionCount++
+			if attackedTime % 5 == 0{
+				disconnectionCount++
+				log.Printf("disconnectionCount is up to " + strconv.FormatInt(disconnectionCount,10))
+			}
+			attackedTime++
 		} else {
 			IsAttacked = false
 		}
