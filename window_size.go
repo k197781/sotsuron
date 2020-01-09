@@ -19,6 +19,8 @@ var (
 	timeout      time.Duration = 30 * time.Second
 	handle       *pcap.Handle
 	closedIpList []string
+	hostIp       string = "10.1.200.100"
+	hostPort     string = "80"
 )
 
 func packetMonitoring() {
@@ -35,7 +37,7 @@ func packetMonitoring() {
 	}
 	defer handle.Close()
 
-	var filter string = "tcp and port 80 and not src host 10.1.200.100"
+	var filter string = "tcp and port " + hostPort + " and not src host " + hostIp
 	err = handle.SetBPFFilter(filter)
 	if err != nil {
 		log.Fatal(err)
@@ -107,5 +109,13 @@ func closeConnection(ip string, result string) {
 	}
 	closedIpList = append(closedIpList, ip) 
 	log.Printf("close connection from " + ip + ", because of " + result)
+
+	// send RESET packet
+	go func() {
+		err := exec.Command("tcpkill", "dst", "host", hostIp, "and", "port", hostPort, "and", "src", ip).Run()
+		if err != nil {
+			log.Printf("can not reset connection from " + ip + ", because of " + result)
+		}
+	}()
 }
 
