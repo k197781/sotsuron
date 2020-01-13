@@ -83,7 +83,7 @@ func packetMonitoring() {
 			CalculatedWindowSize := calculateWindowSize(tcp.Window, windowScales[src])
 			connectionTime := time.Since(connectionStartTimes[src])
 			// windowsizeの型を調整する
-			if CalculatedWindowSize < windowsizeDisconnectionRate*disconnectionCount && IsAttacked {
+			if CalculatedWindowSize <= windowsizeDisconnectionRate*disconnectionCount+256 && IsAttacked {
 				closeConnection(ip.SrcIP.String(), "Window size is " + strconv.FormatInt(CalculatedWindowSize, 10))
 			}
 			if connectionTime.Seconds() > maxConnectiontime && IsAttacked {
