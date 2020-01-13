@@ -77,6 +77,9 @@ func packetMonitoring() {
 		// ・window sizeを計算
 		// ・接続時間を計算
 		} else {
+			if isHttpRequest(packet) == false {
+				continue
+			}
 			CalculatedWindowSize := calculateWindowSize(tcp.Window, windowScales[src])
 			connectionTime := time.Since(connectionStartTimes[src])
 			// windowsizeの型を調整する
@@ -118,4 +121,12 @@ func closeConnection(ip string, result string) {
 			log.Printf("Can not reset connection from " + ip + ". " + result)
 		}
 	}()
+}
+
+func isHttpRequest(packet gopacket.Packet) bool {
+	applicationLayer := packet.ApplicationLayer()
+	if applicationLayer == nil {
+		return false
+	}
+	return true
 }
