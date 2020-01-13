@@ -11,7 +11,7 @@ import (
 var IsAttacked bool = false
 var timeDisconnectionRate time.Duration = 1
 var attackedTime time.Duration = 1
-var disconnectionCount int64 = 1
+var disconnectionCount int64 = 0
 
 func main() {
 	maxConnection := 800
@@ -27,15 +27,15 @@ func main() {
 		connectionStr := strings.Replace(string(out), " ", "", -1)
 		connectionStr = strings.Replace(connectionStr, "\n", "", -1)
 		connection, _ := strconv.Atoi(connectionStr)
-		log.Println(connection)
+		log.Printf("Number of connection is " + connectionStr)
 		if connection > maxConnection {
 			if IsAttacked == false {
 				IsAttacked = true
-				log.Printf("this server is Attacked !!!")
+				log.Printf("This server is Attacked !!!")
 			}
 			if attackedTime % 5 == 0{
 				disconnectionCount++
-				log.Printf("disconnectionCount is up to " + strconv.FormatInt(disconnectionCount,10))
+				log.Printf("DisconnectionCount is up to " + strconv.FormatInt(disconnectionCount,10))
 			}
 			attackedTime++
 		} else {

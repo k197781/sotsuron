@@ -3,8 +3,11 @@ package main
 import (
 	"log"
 	"time"
-	"strings"
+	"strconv"
+	"bufio"
+	"bytes"
 	"os/exec"
+	"net/http"
 	"encoding/binary"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -28,7 +31,7 @@ func packetMonitoring() {
 	connectionStartTimes := make(map[string]time.Time)
 	// var minWindowSize int64 = 200
 	var maxConnectiontime float64 = 10.0
-	var windowsizeDisconnectionRate int64 = 32
+	var windowsizeDisconnectionRate int64 = 64
 	closedIpList = make([]string, 100)
 
 	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
@@ -37,7 +40,7 @@ func packetMonitoring() {
 	}
 	defer handle.Close()
 
-	var filter string = "tcp and port " + hostPort + " and not src host " + hostIp
+	var filter string = "tcp and port " + hostPort + " and dst host " + hostIp
 	err = handle.SetBPFFilter(filter)
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +50,7 @@ func packetMonitoring() {
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
 		tcpLayer := packet.Layer(layers.LayerTypeTCP)
-                if ipLayer == nil {
+		if ipLayer == nil {
 			log.Print("ip header is nil")
 			continue
 		}
@@ -78,10 +81,10 @@ func packetMonitoring() {
 			connectionTime := time.Since(connectionStartTimes[src])
 			// windowsizeの型を調整する
 			if CalculatedWindowSize < windowsizeDisconnectionRate*disconnectionCount && IsAttacked {
-				closeConnection(ip.SrcIP.String(), "window size")
+				closeConnection(ip.SrcIP.String(), "Window size is " + strconv.FormatInt(CalculatedWindowSize, 10))
 			}
 			if connectionTime.Seconds() > maxConnectiontime && IsAttacked {
-				closeConnection(ip.SrcIP.String(), "connection time")
+				closeConnection(ip.SrcIP.String(), "Connection time is to long")
 			}
 		}
 	}
@@ -94,9 +97,6 @@ func calculateWindowSize(windowSize uint16, windowScale []byte) int64 {
 }
 
 func closeConnection(ip string, result string) {
-	if strings.Contains(ip, "10.1.5.23") {
-		return
-	}
 	for _, closedIp := range closedIpList {
 		if closedIp == ip {
 			return
@@ -107,15 +107,15 @@ func closeConnection(ip string, result string) {
 	if err != nil {
 		log.Printf("can not close connection from " + ip + ", because of " + result)
 	}
+
 	closedIpList = append(closedIpList, ip) 
-	log.Printf("close connection from " + ip + ", because of " + result)
+	log.Printf("Close connection from " + ip + ". " + result)
 
 	// send RESET packet
 	go func() {
 		err := exec.Command("tcpkill", "dst", "host", hostIp, "and", "port", hostPort, "and", "src", ip).Run()
 		if err != nil {
-			log.Printf("can not reset connection from " + ip + ", because of " + result)
+			log.Printf("Can not reset connection from " + ip + ". " + result)
 		}
 	}()
 }
-
