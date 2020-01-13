@@ -34,7 +34,7 @@ func packetMonitoring() {
 	var windowsizeDisconnectionRate int64 = 64
 	closedIpList = make([]string, 100)
 
-	handle, err = pcap.OpenLive(device, snapshot_len, promiscuous, timeout)
+	handle, err = pcap.OpenLive(device, int32(0xFFFF), true, pcap.BlockForever,)
 	if err != nil {
 		log.Fatal(err)
 	}
