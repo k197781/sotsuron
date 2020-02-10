@@ -4,10 +4,8 @@ import (
 	"log"
 	"time"
 	"strconv"
-	"bufio"
-	"bytes"
+	"strings"
 	"os/exec"
-	"net/http"
 	"encoding/binary"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -85,9 +83,11 @@ func packetMonitoring() {
 			// windowsizeの型を調整する
 			if CalculatedWindowSize <= windowsizeDisconnectionRate*disconnectionCount+256 && IsAttacked {
 				closeConnection(ip.SrcIP.String(), "Window size is " + strconv.FormatInt(CalculatedWindowSize, 10))
+				closeSocket(ip.SrcIP.String())
 			}
 			if connectionTime.Seconds() > maxConnectiontime && IsAttacked {
 				closeConnection(ip.SrcIP.String(), "Connection time is to long")
+				closeSocket(ip.SrcIP.String())
 			}
 		}
 	}
@@ -111,22 +111,40 @@ func closeConnection(ip string, result string) {
 		log.Printf("can not close connection from " + ip + ", because of " + result)
 	}
 
-	closedIpList = append(closedIpList, ip) 
+	closedIpList = append(closedIpList, ip)
 	log.Printf("Close connection from " + ip + ". " + result)
-
-	// send RESET packet
-	go func() {
-		err := exec.Command("tcpkill", "dst", "host", hostIp, "and", "port", hostPort, "and", "src", ip).Run()
-		if err != nil {
-			log.Printf("Can not reset connection from " + ip + ". " + result)
-		}
-	}()
 }
 
 func isHttpRequest(packet gopacket.Packet) bool {
 	applicationLayer := packet.ApplicationLayer()
 	if applicationLayer == nil {
 		return false
+	}
+	return true
+}
+
+func closeSocket(ip string) bool {
+	out, err := exec.Command("sh", "-c", "netstat -tan | grep ':80' | grep '" + ip + "'").Output()
+	if err != nil {
+		log.Printf("No reset connection from " + ip)
+		return false
+	}
+	connectionStr := string(out)
+	connectionStrList := strings.Split(connectionStr, "\n")
+
+	// close socket for each of connection from attacked server
+	for _, str := range connectionStrList {
+		strList := strings.Split(str, " ")
+		for _, s := range strList {
+			if strings.HasPrefix(s, ip) {
+				port := strings.TrimLeft(s, ip + ":")
+				err :=  exec.Command("sh", "-c", "ss -K dst " + ip + " dport = " + port).Run()
+				if err != nil {
+					log.Printf("Can not reset connection from " + ip)
+				}
+				continue	
+			}
+		}
 	}
 	return true
 }
